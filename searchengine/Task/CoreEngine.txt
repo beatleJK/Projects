@@ -1,0 +1,76 @@
+package searchengine.services;
+
+import searchengine.model.Index;
+import searchengine.model.Lemma;
+import searchengine.model.Page;
+
+import java.util.*;
+
+public class CoreEngine {
+    private SiteService siteService;
+    private PageService pageService;
+    private LemmaService lemmaService;
+    private IndexService indexService;
+    private int maxFrequency;
+
+    public CoreEngine(SiteService siteService, PageService pageService, LemmaService lemmaService, IndexService indexService, int maxFrequency) {
+        this.siteService = siteService;
+        this.pageService = pageService;
+        this.lemmaService = lemmaService;
+        this.indexService = indexService;
+        this.maxFrequency = maxFrequency;
+    }
+
+    public List<Lemma> getLemmas(Set<String> wordSet){
+        List<Lemma> lemmaList = new ArrayList<>();
+        for (String word : wordSet){
+            Iterator<Lemma> iterator = lemmaService.readAllLemmas(word).iterator();
+            while (iterator.hasNext()){
+                Lemma lemma = iterator.next();
+                if(lemma.getFrequency() <= maxFrequency){
+                    lemmaList.add(lemma);
+                }
+            }
+        }
+        Collections.sort(lemmaList);
+        return lemmaList;
+    }
+    //TODO: Протестировать работу двух следующих методов
+    public List<Page> searchPage(List<Lemma> lemmaList){
+        List<Page> currentPages = new ArrayList<>();
+        for(Lemma lemma : lemmaList){
+            currentPages = getPagesFromLemma(currentPages,lemma);
+        }
+    return currentPages;
+    }
+    private List<Page> getPagesFromLemma(List<Page> currentPages,Lemma searchLemma){
+        List<Index> indexList = new ArrayList<>();
+        List<Page> pageList = new ArrayList<>();
+        if(currentPages.isEmpty()){
+            indexList = searchLemma.getIndexes();
+            if(!indexList.isEmpty()){
+                pageList = getPageFromIndex(indexList);
+                if(!pageList.isEmpty()){
+                    return pageList;
+                }
+            }
+        } else {
+            for (Page page : currentPages){
+                Index searchIndex = indexService.read(page,searchLemma);
+                indexList.add(searchIndex);
+            }
+            if(!indexList.isEmpty()){
+                pageList = getPageFromIndex(indexList);
+                return pageList;
+            }
+        }
+    return  null;
+    }
+    private List<Page> getPageFromIndex(List<Index> indexes){
+        List<Page> pageList = new ArrayList<>();
+        for (Index index : indexes){
+            pageList.add(index.getPage());
+        }
+    return pageList;
+    }
+}
